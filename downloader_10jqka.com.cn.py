@@ -12,6 +12,9 @@ codeN
 """
 
 import sys
+import time
+import gzip
+import json
 import http.client #python 3.x
 # import httplib   #python 2.x
 
@@ -32,9 +35,12 @@ class Config:
 
     def stockCodes(self):
         "return: [code1, code2 ... codeN]"
+        tmps  = []
         codes = []
         with open(self.configFile, "r") as f:
-            codes = f.readlines()
+            tmps = f.readlines()
+        for code in tmps:
+            codes.append(code.strip("\n"))
         return codes
 
     def params(self):
@@ -44,7 +50,7 @@ class Config:
         for code in codes:
             for kpi in self.__kpinames:
                 for period in self.__periods:
-                    item = [code.strip("\n"), kpi, period]
+                    item = [code, kpi, period]
                     configs.append(item)
         return configs
 
@@ -65,33 +71,73 @@ class Downloader:
         path   = "/api/stock/export.php?export=" + kpiname + "&type=" + reportperiod + "&code=" + stockcode
         return {"server": server, "path": path, "savePath":savePath}
 
-
-    def download(self, server, path, savePath):
+    def download(self, server, path, requestHeader = None):
         "Download function"
-        reqheader = {
-            'User-Agent': 'Mozilla/5.0',
-            'Accept-Encoding' : 'gzip,deflate',
-            'Connection': 'keep-alive'
-        }
+        if (requestHeader == None):
+            requestHeader = {
+                'User-Agent': 'Mozilla/5.0',
+                'Accept-Encoding' : 'gzip,deflate',
+                'Connection': 'keep-alive',
+                #'Referer': 'http://stockpage.10jqka.com.cn/realHead_v2.html'
+            }
 
         conn = http.client.HTTPConnection(server)  #python 3.x
         # conn = httplib.HTTPConnection(server)  #python 2.x
-        conn.request("GET", path, None, reqheader)
+        conn.request("GET", path, None, requestHeader)
         response = conn.getresponse()
         data = response.read()
-        print("download:", path,  "response status:", response.status, " reason:", response.reason) #python3.x
-        # print "download:", path,  "response status:", response.status, " reason:", response.reason #python2.x
+        conn.close()
+        return (response.status, response.reason, data)
 
+    def saveFile(self, data, savePath):
         with open(savePath, "wb") as f:
             f.write(data)
-        conn.close()
 
     def downloadReport(self):
         params = self.downloadParams(self.stockcode, self.kpiname, self.reportperiod)
-        self.download(params["server"], params["path"], params["savePath"])
-    
+        responseTuple = self.download(params["server"], params["path"])
+        print("download:", params["path"],  "response status:", responseTuple[0], " reason:", responseTuple[1]) #python3.x
+        # print "download:", params["path"],  "response status:", responseTuple[0], " reason:", responseTuple[1] #python2.x
+        if responseTuple[0] == 200:
+            self.saveFile(responseTuple[2], params["savePath"])
+
+
+class PriceDownloader(Downloader):
+    __server = "d.10jqka.com.cn"
+    __path = ""
+    def __init__(self, code, savePath):
+        self.code, self.savePath = code, savePath
+        self.__path = "/v2/realhead/hs_" + code + "/last.js"
+
+    def downloadPrices(self):
+        requestHeader = {
+            'User-Agent': 'Mozilla/5.0',
+            'Accept-Encoding' : 'gzip,deflate',
+            'Connection': 'keep-alive',
+            'Referer': 'http://stockpage.10jqka.com.cn/realHead_v2.html'
+        }
+
+        responseTuple = self.download(self.__server, self.__path, requestHeader)
+        print("download:", self.__path,  "response status:", responseTuple[0], " reason:", responseTuple[1]) #python3.x
+        # print "download:", self.__path,  "response status:", responseTuple[0], " reason:", responseTuple[1] #python2.x
+        if responseTuple[0] == 200:
+            jsonStr = self.getJsonStr(str(gzip.decompress(responseTuple[2]), encoding='utf-8'))
+            self.saveFile(jsonStr.encode('utf-8'), self.savePath)
+
+    def getJsonStr(self, str1):
+        "get substring between ( and ) in str"
+        begin = str1.find('(')
+        end   = str1.find(')')
+        if begin == -1 or end == -1 :
+            return None
+        return str1[begin + 1: end]
+
+
 def main(stockCodeFile):
+
+    #download xls files
     config = Config(stockCodeFile)
+    stockCodes = config.stockCodes()
     downloadParams = config.params()
 
     for param in downloadParams:
@@ -100,6 +146,11 @@ def main(stockCodeFile):
         # print "Downloading, code:", stockcode, " kpi:", config.kpiMap[kpiname], " report period:", config.periodMap[reportperiod] #python2.x
         downloader = Downloader(stockcode, kpiname, reportperiod)
         downloader.downloadReport()
+
+    for code in stockCodes:
+        day = time.strftime("%Y%m%d", time.localtime())
+        priceDownloader = PriceDownloader(code, code + "_" + day + "_price.json")
+        priceDownloader.downloadPrices()
 
 
 if __name__ == "__main__":
