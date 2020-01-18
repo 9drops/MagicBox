@@ -17,6 +17,7 @@ import gzip
 import json
 import http.client #python 3.x
 # import httplib   #python 2.x
+from xls2db import XLS2MYSQL as x2m
 
 class Config:
     """
@@ -59,6 +60,7 @@ class Downloader:
         self.stockcode = stockcode
         self.kpiname = kpiname
         self.reportperiod = reportperiod
+        self.xlspath = None
 
     def downloadParams(self, stockcode, kpiname, reportperiod):
         '''
@@ -67,6 +69,7 @@ class Downloader:
         path   = "/api/stock/export.php?export=" + kpiname + "&type=" + reportperiod + "&code=" + stockcode
         '''
         savePath = stockcode + "_" + kpiname + "_" + reportperiod + ".xls"
+        self.xlspath = savePath
         server = "basic.10jqka.com.cn"
         path   = "/api/stock/export.php?export=" + kpiname + "&type=" + reportperiod + "&code=" + stockcode
         return {"server": server, "path": path, "savePath":savePath}
@@ -146,6 +149,7 @@ def main(stockCodeFile):
         # print "Downloading, code:", stockcode, " kpi:", config.kpiMap[kpiname], " report period:", config.periodMap[reportperiod] #python2.x
         downloader = Downloader(stockcode, kpiname, reportperiod)
         downloader.downloadReport()
+        x2m.xls2db(kpiname, reportperiod, stockcode, downloader.xlspath)
 
     for code in stockCodes:
         day = time.strftime("%Y%m%d", time.localtime())
