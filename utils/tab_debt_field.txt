@@ -17,6 +17,7 @@ non_current_assets
 available_for_sale_financial_assets
 held_to_maturity_investment
 long_term_equity_investment
+other_non_current_financial_assets
 total_fixed_assets
 fixed_assets
 disposal_fixed_assets
@@ -82,6 +83,7 @@ total_liabilities_and_Capital
 可供出售金融资产(元)
 持有至到期投资(元)
 长期股权投资(元)
+其他非流动金融资产(元)
 固定资产合计(元)
 其中：固定资产(元)
 固定资产清理(元)

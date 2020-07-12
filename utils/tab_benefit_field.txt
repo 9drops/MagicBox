@@ -10,6 +10,7 @@ rd_cost
 financial_cost
 interest_income
 asset_impairment_loss
+credit_impairment_loss
 fair_value_variable_income
 investment_income
 joint_venture_income
@@ -48,6 +49,7 @@ minority_shareholders_total_comprehensive_income
 财务费用
 利息收入
 资产减值损失
+信用减值损失
 公允价值变动收益
 投资收益
 联营企业和合营企业的投资收益
